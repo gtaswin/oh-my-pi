@@ -513,7 +513,7 @@ export class AgentDashboard extends Container {
 				const trimmed = agent.overrideModel?.trim();
 				if (trimmed) {
 					overrides[agent.name] = { ...(existingVal as AgentModelOverride), model: trimmed };
-				} else if (agent.overrideModel === undefined) {
+				} else if (agent.overrideModel === undefined && !("model" in existingVal)) {
 					// User didn't touch the model — preserve existing object as-is (e.g. params-only overrides)
 					overrides[agent.name] = existingVal;
 				} else {
