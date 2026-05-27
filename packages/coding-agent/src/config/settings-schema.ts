@@ -1,4 +1,5 @@
 import { THINKING_EFFORTS } from "@oh-my-pi/pi-ai";
+import type { AgentModelOverride } from "../task/types";
 import { TASK_SIMPLE_MODES } from "../task/simple-mode";
 import { getThinkingLevelMetadata } from "../thinking";
 import { EDIT_MODES } from "../utils/edit-mode";
@@ -2535,7 +2536,8 @@ export const SETTINGS_SCHEMA = {
 
 	"task.agentModelOverrides": {
 		type: "record",
-		default: {} as Record<string, string>,
+		// Values may be a model selector string or an AgentModelOverride object
+		default: {} as Record<string, string | AgentModelOverride>,
 	},
 
 	"tasks.todoClearDelay": {

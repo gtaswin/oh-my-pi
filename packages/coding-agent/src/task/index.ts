@@ -36,6 +36,7 @@ import {
 	type SingleResult,
 	type TaskParams,
 	type TaskToolDetails,
+	type AgentModelOverride,
 	type TaskToolSchemaInstance,
 } from "./types";
 // Import review tools for side effects (registers subagent tool handlers)
@@ -646,16 +647,20 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 
 		// Apply per-agent model override from settings (highest priority)
 		const agentModelOverrides = this.session.settings.get("task.agentModelOverrides");
-		const settingsModelOverride = agentModelOverrides[agentName];
+		const rawOverride = agentModelOverrides[agentName];
+		// AgentModelOverride: string (model selector) or {model, temperature, topP, topK, minP, presencePenalty, repetitionPenalty, thinkingLevel}
+		const overrideModel = typeof rawOverride === "string" ? rawOverride : (rawOverride as AgentModelOverride)?.model;
+		const modelParams: AgentModelOverride | undefined =
+			typeof rawOverride === "object" && rawOverride !== null ? (rawOverride as AgentModelOverride) : undefined;
 		const parentActiveModelPattern = this.session.getActiveModelString?.();
 		const modelOverride = resolveAgentModelPatterns({
-			settingsOverride: settingsModelOverride,
+			settingsOverride: overrideModel ?? rawOverride,
 			agentModel: effectiveAgent.model,
 			settings: this.session.settings,
 			activeModelPattern: parentActiveModelPattern,
 			fallbackModelPattern: this.session.getModelString?.(),
 		});
-		const thinkingLevelOverride = effectiveAgent.thinkingLevel;
+		const thinkingLevelOverride = modelParams?.thinkingLevel ?? effectiveAgent.thinkingLevel;
 
 		// Output schema priority: task call > agent frontmatter > inherited parent session.
 		// task.simple can disable the task-call override while leaving agent/session schemas intact.
@@ -904,6 +909,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						modelOverride,
 						parentActiveModelPattern,
 						thinkingLevel: thinkingLevelOverride,
+						modelParams,
 						outputSchema: effectiveOutputSchema,
 						sessionFile,
 						persistArtifacts: !!artifactsDir,
@@ -960,6 +966,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 						modelOverride,
 						parentActiveModelPattern,
 						thinkingLevel: thinkingLevelOverride,
+						modelParams,
 						outputSchema: effectiveOutputSchema,
 						sessionFile,
 						persistArtifacts: !!artifactsDir,

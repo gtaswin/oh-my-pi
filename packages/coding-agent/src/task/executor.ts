@@ -51,6 +51,7 @@ import {
 	TASK_SUBAGENT_EVENT_CHANNEL,
 	TASK_SUBAGENT_LIFECYCLE_CHANNEL,
 	TASK_SUBAGENT_PROGRESS_CHANNEL,
+	type AgentModelOverride,
 	type TaskToolDetails,
 } from "./types";
 
@@ -75,13 +76,13 @@ const isAgentEvent = (event: AgentSessionEvent): event is AgentEvent =>
 
 function normalizeModelPatterns(value: string | string[] | undefined): string[] {
 	if (!value) return [];
-	if (Array.isArray(value)) {
-		return value.map(entry => entry.trim()).filter(Boolean);
-	}
-	return value
-		.split(",")
-		.map(entry => entry.trim())
-		.filter(Boolean);
+	if (Array.isArray(value)) return value.map(entry => String(entry).trim()).filter(Boolean);
+	if (typeof value === "string")
+		return value
+			.split(",")
+			.map(entry => entry.trim())
+			.filter(Boolean);
+	return [];
 }
 
 function renderIrcPeerRoster(selfId: string): string {
@@ -156,6 +157,8 @@ export interface ExecutorOptions {
 	 */
 	parentActiveModelPattern?: string;
 	thinkingLevel?: ThinkingLevel;
+	/** Per-agent model parameter overrides from settings. */
+	modelParams?: AgentModelOverride;
 	outputSchema?: unknown;
 	/** Parent task recursion depth (0 = top-level, 1 = first child, etc.) */
 	taskDepth?: number;
@@ -554,6 +557,7 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 		worktree,
 		modelOverride,
 		thinkingLevel,
+		modelParams,
 		outputSchema,
 		enableLsp,
 		signal,
@@ -612,6 +616,13 @@ export async function runSubprocess(options: ExecutorOptions): Promise<SingleRes
 
 	const settings = options.settings ?? Settings.isolated();
 	const subagentSettings = createSubagentSettings(settings);
+	if (modelParams) {
+		for (const [key, value] of Object.entries(modelParams)) {
+			if (value !== undefined && key !== "model" && key !== "thinkingLevel") {
+				subagentSettings.set(key as string, value);
+			}
+		}
+	}
 	const maxRecursionDepth = settings.get("task.maxRecursionDepth") ?? 2;
 	const maxRuntimeMs = Math.max(0, Math.trunc(Number(settings.get("task.maxRuntimeMs") ?? 0) || 0));
 	const parentDepth = options.taskDepth ?? 0;

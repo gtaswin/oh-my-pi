@@ -511,8 +511,13 @@ function getModelRoleAlias(value: string): ModelRole | undefined {
 
 function normalizeModelPatternList(value: string | string[] | undefined): string[] {
 	if (!value) return [];
-	const patterns = Array.isArray(value) ? value : value.split(",");
-	return patterns.map(pattern => pattern.trim()).filter(Boolean);
+	if (Array.isArray(value)) return value.map(pattern => String(pattern).trim()).filter(Boolean);
+	if (typeof value === "string")
+		return value
+			.split(",")
+			.map(pattern => pattern.trim())
+			.filter(Boolean);
+	return [];
 }
 
 function isSessionInheritedAgentPattern(value: string): boolean {

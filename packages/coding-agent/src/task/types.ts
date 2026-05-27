@@ -178,6 +178,27 @@ export interface AgentDefinition {
 	filePath?: string;
 }
 
+/** Per-agent model parameter overrides from settings (task.agentModelOverrides).
+ * Values may be a model selector string or an object with any of these fields. */
+export interface AgentModelOverride {
+	/** Model selector string (e.g. "opencode-go/deepseek-v4-flash") */
+	model?: string;
+	/** Temperature sampling parameter (0–2) */
+	temperature?: number;
+	/** Top-p nucleus sampling parameter (0–1) */
+	topP?: number;
+	/** Top-k sampling parameter */
+	topK?: number;
+	/** Min-p sampling parameter */
+	minP?: number;
+	/** Presence penalty */
+	presencePenalty?: number;
+	/** Repetition penalty */
+	repetitionPenalty?: number;
+	/** Thinking level override ("minimal"|"low"|"medium"|"high"|"xhigh") */
+	thinkingLevel?: string;
+}
+
 /** Progress tracking for a single agent */
 export interface AgentProgress {
 	index: number;
