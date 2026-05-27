@@ -46,7 +46,7 @@ import agentCreationArchitectPrompt from "../../prompts/system/agent-creation-ar
 import agentCreationUserPrompt from "../../prompts/system/agent-creation-user.md" with { type: "text" };
 import { createAgentSession } from "../../sdk";
 import { discoverAgents } from "../../task/discovery";
-import type { AgentDefinition, AgentSource } from "../../task/types";
+import type { AgentDefinition, AgentModelOverride, AgentSource } from "../../task/types";
 import { shortenPath } from "../../tools/render-utils";
 import { theme } from "../theme/theme";
 import { matchesAppInterrupt } from "../utils/keybinding-matchers";
@@ -264,7 +264,7 @@ class AgentInspectorPane implements Component {
 			`${theme.fg("muted", "Default resolves:")} ${this.defaultResolution ? this.#formatResolution(this.defaultResolution) : theme.fg("dim", "(unresolved)")}`,
 		);
 		lines.push(
-			`${theme.fg("muted", "Override:")} ${this.agent.overrideModel ? theme.fg("warning", replaceTabs(this.agent.overrideModel)) : theme.fg("dim", "(none)")}`,
+			`${theme.fg("muted", "Override:")} ${this.agent.overrideModel ? theme.fg("warning", replaceTabs(this.agent.overrideModel)) : theme.fg("dim", "(none)")}${this.agent.overrideModel === "" ? theme.fg("dim", " (params-only)") : ""}`,
 		);
 		lines.push(`${theme.fg("muted", "Effective pattern:")} ${replaceTabs(joinPatterns(this.effectivePatterns))}`);
 		lines.push(
@@ -402,7 +402,12 @@ export class AgentDashboard extends Container {
 				.map(agent => ({
 					...agent,
 					disabled: disabled.has(agent.name),
-					overrideModel: overrides[agent.name]?.trim() || undefined,
+					overrideModel:
+						typeof overrides[agent.name] === "string"
+							? (overrides[agent.name] as string)?.trim() || undefined
+							: typeof overrides[agent.name] === "object" && overrides[agent.name] !== null
+								? (overrides[agent.name] as AgentModelOverride).model?.trim() || undefined
+								: undefined,
 				}));
 
 			this.#tabs = this.#buildTabs(this.#allAgents);
@@ -499,11 +504,29 @@ export class AgentDashboard extends Container {
 
 	#persistModelOverrides(): void {
 		if (!this.#settingsManager) return;
-		const overrides: Record<string, string> = {};
+		// Preserve any existing object overrides that aren't being edited away
+		const existing = this.#settingsManager.get("task.agentModelOverrides") ?? {};
+		const overrides: Record<string, string | AgentModelOverride> = {};
 		for (const agent of this.#allAgents) {
-			const value = agent.overrideModel?.trim();
-			if (value) {
-				overrides[agent.name] = value;
+			const existingVal = existing[agent.name];
+			if (typeof existingVal === "object" && existingVal !== null && agent.overrideModel !== undefined) {
+				// Object override: update model field, preserve other fields
+				const trimmed = agent.overrideModel.trim();
+				if (trimmed) {
+					overrides[agent.name] = { ...(existingVal as AgentModelOverride), model: trimmed };
+				} else {
+					// User cleared the model override — keep the object but drop model
+					const { model: _, ...rest } = existingVal as AgentModelOverride;
+					if (Object.keys(rest).length > 0) {
+						overrides[agent.name] = rest as AgentModelOverride;
+					}
+				}
+			} else {
+				// String override (or new): use trimmed string value
+				const value = agent.overrideModel?.trim();
+				if (value) {
+					overrides[agent.name] = value;
+				}
 			}
 		}
 		this.#settingsManager.set("task.agentModelOverrides", overrides);
