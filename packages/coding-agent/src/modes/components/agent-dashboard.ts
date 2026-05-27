@@ -504,18 +504,20 @@ export class AgentDashboard extends Container {
 
 	#persistModelOverrides(): void {
 		if (!this.#settingsManager) return;
-		// Preserve any existing object overrides that aren't being edited away
 		const existing = this.#settingsManager.get("task.agentModelOverrides") ?? {};
 		const overrides: Record<string, string | AgentModelOverride> = {};
 		for (const agent of this.#allAgents) {
 			const existingVal = existing[agent.name];
-			if (typeof existingVal === "object" && existingVal !== null && agent.overrideModel !== undefined) {
-				// Object override: update model field, preserve other fields
-				const trimmed = agent.overrideModel.trim();
+			if (typeof existingVal === "object" && existingVal !== null) {
+				// Object override exists — update model field if user edited it, preserve the rest
+				const trimmed = agent.overrideModel?.trim();
 				if (trimmed) {
 					overrides[agent.name] = { ...(existingVal as AgentModelOverride), model: trimmed };
+				} else if (agent.overrideModel === undefined) {
+					// User didn't touch the model — preserve existing object as-is (e.g. params-only overrides)
+					overrides[agent.name] = existingVal;
 				} else {
-					// User cleared the model override — keep the object but drop model
+					// User cleared the model field — drop model, keep other params
 					const { model: _, ...rest } = existingVal as AgentModelOverride;
 					if (Object.keys(rest).length > 0) {
 						overrides[agent.name] = rest as AgentModelOverride;
