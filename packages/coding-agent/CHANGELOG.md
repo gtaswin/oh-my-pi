@@ -9,6 +9,7 @@
 ### Added
 
 - Added `read.summarize.minTotalLines` setting (default 100) to set the minimum file length that triggers read summarization
+- Added per-agent model parameter overrides to `task.agentModelOverrides`: values may now be objects with `model`, `temperature`, `topP`, `topK`, `minP`, `presencePenalty`, `repetitionPenalty`, and `thinkingLevel` fields, allowing per-agent control of sampling parameters without changing global settings
 - Added `<file>:<lines>` support to `search` `paths`, allowing file-scoped constraints such as `:N-M`, `:N+K`, and comma-separated ranges
 
 ### Changed
@@ -16,6 +17,11 @@
 - Changed multi-section hashline `edit` execution to defer LSP diagnostics flushing until the final section is written
 - Changed read to return verbatim contents for files shorter than `read.summarize.minTotalLines` instead of summarizing them
 - Changed `search` path line-range filtering to include only matches and context lines that fall inside the requested ranges
+
+### Fixed
+
+- Fixed `normalizeModelPatternList` and `normalizeModelPatterns` crashing with `TypeError: value.split is not a function` when `task.agentModelOverrides` values are objects instead of strings — added `typeof value === "string"` guard before calling `.split()`
+- Fixed the agents dashboard crashing with `TypeError: ...trim is not a function` and silently dropping params-only overrides (e.g. `{temperature: 0.2}`) when saving — `#reloadData` now branches on `typeof` before calling `.trim()`, and `#persistModelOverrides` preserves object override fields even when no `model` key is present
 
 ## [15.5.3] - 2026-05-27
 ### Breaking Changes
