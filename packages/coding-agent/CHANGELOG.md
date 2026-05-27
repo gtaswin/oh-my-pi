@@ -1,11 +1,41 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+
+- `generate_image` supports xAI Grok Imagine via `providers.image=xai`. Supports `grok-imagine-image` (default) and `grok-imagine-image-quality` at aspect ratios `1:1`, `16:9`, `9:16`, `4:3`, `3:4`, `3:2`, `2:3`. Uses the xAI Grok OAuth credential when available, otherwise `XAI_API_KEY`.
+- New `tts` tool synthesises speech via xAI Grok Voice behind the disabled-by-default `tts.enabled` setting. Built-in voices `ara`, `eve` (default), `leo`, `rex`, `sal`; custom voice IDs also accepted. Output codec inferred from the `output_path` suffix (`.wav` → `wav`, else `mp3`). Up to 15,000 characters per request.
+
+## [15.5.6] - 2026-05-27
+### Added
+
+- Support for multi-range line selectors on URLs (e.g., `:5-10,20-30`) to fetch and display multiple non-contiguous sections
+- Support for combining `:raw` mode with line range selectors on URLs (e.g., `:raw:1-120` or `:1-120:raw`)
+- Support for line range selectors on directory listings (e.g., `:30-40` to view lines 30–40 of a directory tree)
+- Clear error message when requesting a line offset beyond the end of a directory listing
+
+### Changed
+
+- URL selector parsing now supports multiple trailing selector tokens (e.g., `:raw:N-M`), applying them left-to-right
+
+### Fixed
+
+- Fixed `:raw` selector being ignored for JSON and feed URLs, causing them to be pretty-printed or converted to markdown instead of returning raw content
+- Fixed directory listing line selectors silently dropping the offset parameter and only applying the limit
+
+## [15.5.5] - 2026-05-27
+
+### Changed
+
+- Removed the model-facing `path` property from hashline edit tool parameters; hashline edit targets now come from `¶PATH` headers in `input`.
+
+### Fixed
+
+- Fixed legacy pi-* extension loading regression where `import { Type } from "@(scope)/pi-ai"` (e.g. `@earendil-works/pi-ai` used by `@plannotator/pi-extension`) failed with `Export named 'Type' not found` after pi-ai 15.1.0 removed the root `Type` runtime export; the legacy-pi compat layer now redirects bare `@oh-my-pi/pi-ai` root imports through a sibling shim that re-exports the canonical pi-ai surface plus the Zod-backed `Type` runtime from the same TypeBox shim served to `@sinclair/typebox` imports ([#1437](https://github.com/can1357/oh-my-pi/issues/1437))
 
 ## [15.5.4] - 2026-05-27
 
 ### Breaking Changes
-
 - Removed the package root `hashline` export so imports from the top-level entrypoint can no longer access `hashline` helpers directly
 
 ### Added

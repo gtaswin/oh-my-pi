@@ -1,83 +1,124 @@
 Your patch language is a compact, line-anchored edit format.
 
 <payload>
-Patch payload is a series of hunks: `¶PATH#HASH` header followed by any number of operations. `HASH` should be copied as is from read/search. Missing? Re-`read`.
-- No context rows, no gutters.
-- NEVER restate unchanged lines "for context".
-- Op lines carry NO payload. Every payload line lives on its own row and MUST start with `+`; that delimiter is stripped.
-- Payload indentation is literal.
-</payload>
+Patch payload = one or more file sections:
 
-<ops>
-LINE↑    insert before (or BOF↑)
-LINE↓    insert after  (or EOF↓)
-A-B:     replace A..B  (or A: == A..A)
-A-B!     delete A..B   (or A! == A..A)
-+PAYLOAD payload line for the preceding op
-</ops>
-
-<rules>
-- **Payload is only what's NEW.** `:` replaces inside; `↑`/`↓` add at anchor. NEVER repeat anchor lines or neighbors.
-- **Use `+` for a blank payload line; use `++text` to write a line starting with `+text`.**
-- **Inserts add ONLY the rows you list.** The file's existing newlines around the anchor stay. NEVER tack a trailing `+` blank "for spacing" — it writes a literal blank line into the file, doubling whatever is already there.
-- **A bare `LINE↑`/`LINE↓` with no payload still inserts ONE blank line.** Not a no-op. Omit the op if you want nothing there.
-- **Go small.** Add → `↑`/`↓`; replace → `:`; delete → `!`.
-- **Line numbers are frozen references to what you have seen.** Later ops in the same hunk still use original line numbers; they do NOT shift as earlier ops apply.
-</rules>
-
-<common-failures>
-- **NEVER replay past your range.** Stop before B+1; extend B if needed.
-- **Read lines look like replace ops.** `84:content` = "make line 84 content" — and inline content is rejected. Don't echo read-style rows.
-- **NEVER fabricate file hashes.** Missing? Re-`read`.
-</common-failures>
-
-<example>
-```a.ts#1a2b
-1:const X = "a";
-2:
-3:export function f() { return X; }
-4:f();
+```
+¶PATH#HASH
+A-B:
+|replacement line
+↑inserted above line
+↓inserted below line
 ```
 
-# replace one line, insert after, delete
+- `HASH` comes from the latest `read`/`search` header. Missing? Re-`read`.
+- No context rows, no gutters, no unchanged lines.
+- Anchor rows are ALWAYS bare: `A-B:`, `A:`, `BOF:`, `EOF:`.
+- Payload rows MUST start with `|`, `↑`, or `↓`.
+- The first sigil is stripped; remaining bytes are file content.
+</payload>
+
+<anchors>
+`A-B:` — anchor A..B inclusive.
+`A:` — shorthand for `A-A:`.
+`BOF:` — virtual position before line 1.
+`EOF:` — virtual position after the last line.
+</anchors>
+
+<payload-sigils>
+`|content` — replace A..B with `content`.
+`↑content` — insert `content` before A.
+`↓content` — insert `content` after B.
+</payload-sigils>
+
+<semantics>
+- **No payload rows → delete.** `5:` deletes line 5.
+- **Any `|` row → replace.** Delete A..B; insert all `|` rows there.
+- **Only `↑`/`↓` rows → preserve.** Anchor lines stay unchanged.
+- **Buckets combine.** `↑` before A, `|` in place, `↓` after B.
+- **Bucket order ignores interleaving.** Output order = all `↑`, then `|`/original, then all `↓`.
+- **Order within a bucket is preserved.** Two `↑` rows stack top-down.
+- **Blank payload rows are explicit.** Bare `|`, `↑`, or `↓` writes one blank line.
+- **BOF/EOF only insert.** `↑` and `↓` are equivalent there; `|` is invalid.
+- **Escape leading payload sigils by doubling.** `||x` writes `|x`; `↑↑x` writes `↑x`; `↓↓x` writes `↓x`.
+- **Line numbers are frozen.** Later anchors still reference pre-edit lines.
+</semantics>
+
+<examples>
+# Replace line 1 with two lines; insert one line below the replacement.
 ```
 ¶a.ts#1a2b
 1:
-+const X = "b";
-+export const Y = X;
-1↓
-+const Z = Y;
-4!
+|const X = "b";
+|export const Y = X;
+↓const Z = Y;
 ```
-</example>
+
+# Insert above line 3. Line 3 survives because there is no `|` row.
+```
+¶a.ts#1a2b
+3:
+↑function helper() { return X; }
+```
+
+# Delete lines 5..7.
+```
+¶a.ts#1a2b
+5-7:
+```
+
+# Replace line 5 with one blank line.
+```
+¶a.ts#1a2b
+5:
+|
+```
+</examples>
+
+<common-failures>
+- **NEVER use inline payload.** `5:content` is invalid; write `5:` then `|content`.
+- **Do not repeat preserved lines.** If line 5 should survive, omit `|`.
+- **Do not echo read gutters.** `84:content` is not payload.
+- **Do not replay past B.** Stop before B+1; widen the anchor if B+1 changes.
+- **NEVER fabricate file hashes.** Missing? Re-`read`.
+</common-failures>
 
 <anti-pattern>
-# WRONG — inline payload after the sigil is rejected
-1:const X = "b";
-1↓const Z = Y;
-1-2:const X = "b";
-+export const Y = X;
-# WRONG — INSERT used to change a line (old line survives)
-1↓
-+const X = "b";
-# WRONG — echoing read-style lines as context before the real op
-1:const X = "a";
-1-2:
-+const X = "b";
-+export const Y = X;
-# WRONG — trailing `+` blank writes a literal empty line; the new blank lands right next to the orig blank at line 2, doubling it
-1↓
-+const Y = X;
-+
-# WRONG — `2↓` still anchors at PRE-EDIT line 2 (frozen), NOT at the line just inserted by `1↓`. Both inserts land at their own anchors, giving three consecutive blanks (new from `1↓`, orig blank line 2, new from `2↓`).
-1↓
-2↓
+# WRONG — inline payload after anchor.
+5:const X = "b";
+# RIGHT
+5:
+|const X = "b";
+
+# WRONG — replacing line 5 just to keep it while inserting above.
+5:
+↑const Y = X;
+|const X = "a";
+# RIGHT — no `|`; line 5 survives automatically.
+5:
+↑const Y = X;
+
+# WRONG — read-output gutters inside payload.
+5-6:
+5:const X = "b";
+6:export const Y = X;
+# RIGHT
+5-6:
+|const X = "b";
+|export const Y = X;
+
+# WRONG — line numbers shifted mentally after the first block.
+1:
+↓new line
+2:
+↓another new line
+# `2:` still targets original line 2, not `new line`.
 </anti-pattern>
 
 <critical>
-- One op per range, ever.
-- Pick op precisely. Update: `:`, add: `↑`/`↓`, remove: `!`.
-- Payload always lives on its own `+`-prefixed line — never inline with the op.
-- Payload is only what's NEW; never repeat anchor lines or neighbors.
-- Anchor exactly; don't anchor neighbors.
+- Anchor rows are bare ranges ending in `:`.
+- Payload rows start with `|`, `↑`, or `↓`.
+- `|` means replace anchored lines.
+- Only `↑`/`↓` means preserve anchored lines.
+- Payload is only new content; no context rows.
 </critical>

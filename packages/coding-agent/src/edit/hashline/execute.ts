@@ -1,6 +1,6 @@
 /**
  * Coding-agent runner that drives the hashline {@link Patcher} on behalf of
- * the `edit` tool. Converts a `{input, path?}` tool-call payload into a
+ * the `edit` tool. Converts a `{input}` tool-call payload into a
  * fully-applied patch, wraps the result in the agent's
  * {@link AgentToolResult} shape, and attaches LSP diagnostics + `outputMeta`
  * for the renderer.
@@ -31,7 +31,6 @@ import { type HashlineParams, hashlineEditParamsSchema } from "./params";
 export interface ExecuteHashlineSingleOptions {
 	session: ToolSession;
 	input: string;
-	path?: string;
 	signal?: AbortSignal;
 	batchRequest?: LspBatchRequest;
 	writethrough: WritethroughCallback;
@@ -91,16 +90,10 @@ function renderSection(result: PatchSectionResult, diagnostics: FileDiagnosticsR
 
 	const warningsBlock = result.warnings.length > 0 ? `\n\nWarnings:\n${result.warnings.join("\n")}` : "";
 	const previewBlock = preview.preview ? `\n${preview.preview}` : "";
-	const headline = preview.preview
-		? `${result.path}:`
-		: result.op === "create"
-			? `Created ${result.path}`
-			: `Updated ${result.path}`;
-
 	const firstChangedLine = result.firstChangedLine ?? diff.firstChangedLine;
 	return {
 		toolResult: {
-			content: [{ type: "text", text: `${headline}\n${result.header}${previewBlock}${warningsBlock}` }],
+			content: [{ type: "text", text: `${result.header}${previewBlock}${warningsBlock}` }],
 			details: {
 				diff: diff.diff,
 				firstChangedLine,
@@ -122,7 +115,7 @@ function renderSection(result: PatchSectionResult, diagnostics: FileDiagnosticsR
 export async function executeHashlineSingle(
 	options: ExecuteHashlineSingleOptions,
 ): Promise<AgentToolResult<EditToolDetails, typeof hashlineEditParamsSchema>> {
-	const patch = Patch.parse(options.input, { cwd: options.session.cwd, path: options.path });
+	const patch = Patch.parse(options.input, { cwd: options.session.cwd });
 	if (patch.sections.length === 0) {
 		throw new Error("No hashline sections found in input.");
 	}

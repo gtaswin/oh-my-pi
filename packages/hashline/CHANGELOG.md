@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [15.5.5] - 2026-05-27
+
+### Breaking Changes
+
+- Redesigned hashline syntax around range anchors (`A-B:`, `A:`, `BOF:`, `EOF:`) and per-line payload sigils (`|`, `↑`, `↓`). Old op-line insert syntax and `\` payload continuations are no longer supported.
+
+### Added
+
+- Added `parsePatchStreaming(diff)` and `PatchSection.applyPartialTo(text, options)` for incremental diff previews. Both tolerate a trailing in-flight op (no payload yet, or a per-token parse error mid-stream) instead of throwing or emitting a phantom empty-payload edit.
+- Added `Executor.endStreaming()` — sibling of `end()` that drops a pending op with no accumulated payload rather than flushing it.
+
+### Fixed
+
+- Parser now skips markdown-style `# ...` lines when they directly precede a hashline operation, making model-generated explanatory rows in prompt examples non-blocking.
+
+### Removed
+
+- Removed legacy deletion semantics that treated bare `A-B:` as a blank-line replacement; a bare range anchor now deletes the range.
+
 All notable changes to this package will be documented in this file.
 
 ## [15.5.4] - 2026-05-27

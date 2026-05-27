@@ -2037,6 +2037,15 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	"tts.enabled": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "tools",
+			label: "Text-to-Speech",
+			description: "Enable the tts tool for xAI Grok Voice speech synthesis",
+		},
+	},
 	"recipe.enabled": {
 		type: "boolean",
 		default: true,
@@ -2700,7 +2709,7 @@ export const SETTINGS_SCHEMA = {
 	},
 	"providers.image": {
 		type: "enum",
-		values: ["auto", "openai", "gemini", "openrouter"] as const,
+		values: ["auto", "openai", "antigravity", "xai", "gemini", "openrouter"] as const,
 		default: "auto",
 		ui: {
 			tab: "providers",
@@ -2710,9 +2719,19 @@ export const SETTINGS_SCHEMA = {
 				{
 					value: "auto",
 					label: "Auto",
-					description: "Priority: GPT model image tool > Antigravity > OpenRouter > Gemini",
+					description: "Priority: GPT model image tool > Antigravity > xAI > OpenRouter > Gemini",
 				},
 				{ value: "openai", label: "OpenAI", description: "Uses the active GPT Responses/Codex model" },
+				{
+					value: "antigravity",
+					label: "Antigravity",
+					description: "Requires google-antigravity OAuth",
+				},
+				{
+					value: "xai",
+					label: "xAI Grok Imagine",
+					description: "Requires xAI Grok OAuth or XAI_API_KEY",
+				},
 				{ value: "gemini", label: "Gemini", description: "Requires GEMINI_API_KEY" },
 				{ value: "openrouter", label: "OpenRouter", description: "Requires OPENROUTER_API_KEY" },
 			],

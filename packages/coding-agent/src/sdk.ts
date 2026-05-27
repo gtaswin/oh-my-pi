@@ -129,6 +129,7 @@ import {
 	FindTool,
 	getSearchTools,
 	HIDDEN_TOOLS,
+	isImageProviderPreference,
 	isSearchProviderPreference,
 	type LspStartupServerInfo,
 	loadSshTool,
@@ -148,6 +149,7 @@ import { ToolContextStore } from "./tools/context";
 import { getImageGenTools } from "./tools/image-gen";
 import { wrapToolWithMetaNotice } from "./tools/output-meta";
 import { queueResolveHandler } from "./tools/resolve";
+import { ttsTool } from "./tools/tts";
 import { EventBus } from "./utils/event-bus";
 import { buildNamedToolChoice } from "./utils/tool-choice";
 import { buildWorkspaceTree, type WorkspaceTree } from "./workspace-tree";
@@ -893,12 +895,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 	}
 
 	const imageProvider = settings.get("providers.image");
-	if (
-		imageProvider === "auto" ||
-		imageProvider === "openai" ||
-		imageProvider === "gemini" ||
-		imageProvider === "openrouter"
-	) {
+	if (isImageProviderPreference(imageProvider)) {
 		setPreferredImageProvider(imageProvider);
 	}
 
@@ -1317,6 +1314,10 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		const imageGenTools = await logger.time("getImageGenTools", () => getImageGenTools(modelRegistry, model));
 		if (imageGenTools.length > 0) {
 			customTools.push(...(imageGenTools as unknown as CustomTool[]));
+		}
+
+		if (settings.get("tts.enabled")) {
+			customTools.push(ttsTool as unknown as CustomTool);
 		}
 
 		// Add web search tools
